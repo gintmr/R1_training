@@ -134,36 +134,10 @@ def get_checkpoint_tracker_filename(root_path: str) -> str:
     """
     return os.path.join(root_path, CHECKPOINT_TRACKER)
 
-import os
-import shutil
-import re
-import time
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
-def remove_obsolete_ckpt(
-    path: str,
-    global_step: int,
-    save_limit: int = -1,
-    directory_format: str = "global_step_{}",
-    protected_steps: set = {45, 90, 135, 180, 220},
-    watch_mode: bool = False,
-    cleanup_interval: int = 300
-):
+def remove_obsolete_ckpt(path: str, global_step: int, save_limit: int = -1, directory_format: str = "global_step_{}"):
     """
-    Remove the obsolete checkpoints that exceed the save_limit with enhanced features:
-    - Protected steps that won't be deleted
-    - Watch mode for automatic cleanup
-    - Time-based cleanup option
-    
-    Args:
-        path: Directory containing checkpoints
-        global_step: Current training step
-        save_limit: Maximum number of old checkpoints to keep
-        directory_format: Format string for checkpoint directories
-        protected_steps: Set of step numbers to never delete
-        watch_mode: Enable automatic directory watching
-        cleanup_interval: Seconds between cleanups in watch mode
+    Remove the obsolete checkpoints that exceed the save_limit.
     """
     if save_limit <= 0:
         return
@@ -171,60 +145,16 @@ def remove_obsolete_ckpt(
     if not os.path.exists(path):
         return
 
-    # Define the cleanup function that can be called standalone or by the watcher
-    def _cleanup_checkpoints():
-        pattern = re.escape(directory_format).replace(r"\{\}", r"(\d+)")
-        ckpt_folders = []
-        
-        # Find all matching checkpoint folders
-        for folder in os.listdir(path):
-            if match := re.match(pattern, folder):
-                step = int(match.group(1))
-                if step < global_step:
-                    ckpt_folders.append((step, folder))
-        
-        # Sort checkpoints by step number (newest first)
-        ckpt_folders.sort(reverse=True)
-        
-        # Remove checkpoints beyond save_limit, skipping protected ones
-        removed_any = False
-        for _, folder in ckpt_folders[save_limit - 1:]:
-            folder_path = os.path.join(path, folder)
-            if f"global_step_{int(folder.split('_')[-1])}" not in {f"global_step_{s}" for s in protected_steps}:
-                shutil.rmtree(folder_path, ignore_errors=True)
-                print(f"Removed obsolete checkpoint: {folder_path}")
-                removed_any = True
-        
-        if not removed_any:
-            print(f"No checkpoints needed removal (kept {min(save_limit, len(ckpt_folders))}/{len(ckpt_folders)})")
+    pattern = re.escape(directory_format).replace(r"\{\}", r"(\d+)")
+    ckpt_folders = []
+    for folder in os.listdir(path):
+        if match := re.match(pattern, folder):
+            step = int(match.group(1))
+            if step < global_step:
+                ckpt_folders.append((step, folder))
 
-    # If not in watch mode, just do one cleanup
-    if not watch_mode:
-        _cleanup_checkpoints()
-        return
-
-    # Watch mode implementation
-    class CheckpointHandler(FileSystemEventHandler):
-        # 当文件被创建时调用
-        def on_created(self, event):
-            # 如果创建的是目录，并且目录名符合指定格式
-            if event.is_directory and re.match(
-                re.escape(directory_format).replace(r"\{\}", r"\d+"), 
-                os.path.basename(event.src_path)
-            ):
-                # 清理检查点
-                _cleanup_checkpoints()
-
-    print(f"Starting checkpoint watcher for {path} (cleanup every {cleanup_interval}s)")
-    event_handler = CheckpointHandler()
-    observer = Observer()
-    observer.schedule(event_handler, path, recursive=False)
-    observer.start()
-
-    try:
-        while True:
-            _cleanup_checkpoints()
-            time.sleep(cleanup_interval)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
+    ckpt_folders.sort(reverse=True)
+    for _, folder in ckpt_folders[save_limit - 1 :]:
+        folder_path = os.path.join(path, folder)
+        shutil.rmtree(folder_path, ignore_errors=True)
+        print(f"Removed obsolete checkpoint: {folder_path}")
