@@ -36,51 +36,49 @@ class CurriculumCollator:
         self.total_epoches = total_epoches
         self.current_epoch = current_epoch  # 需在训练循环中更新
 
-    def get_progress(self):
-        progress = self.current_epoch / self.total_epoches
-        return progress
-
-    def get_budget(self, progress):
+    def get_budget(self):
+        if os.getenv("steady", "F") == "FULLv1":
+            if self.current_epoch == 1:
+                budget_list = [8000]
+            elif self.current_epoch == 2:
+                budget_list = [6000]
+            elif self.current_epoch == 3:
+                budget_list = [4000]
+            elif self.current_epoch == 4:
+                budget_list = [2000]
+            elif self.current_epoch == 5:
+                budget_list = [1000]
+        elif os.getenv("steady", "F") == "FULLv2":
+            if self.current_epoch == 1:
+                budget_list = [4000]
+            elif self.current_epoch == 2:
+                budget_list = [2000]
+            elif self.current_epoch == 3:
+                budget_list = [1000]
+            elif self.current_epoch == 4:
+                budget_list = [2000]
+            elif self.current_epoch == 5:
+                budget_list = [1000]
+        elif os.getenv("steady", "F") == "FULLv3":
+            if self.current_epoch == 1:
+                budget_list = [2000]
+            elif self.current_epoch == 2:
+                budget_list = [1000]
+            elif self.current_epoch == 3:
+                budget_list = [500]     
         
-        # if progress <= 0.17:
-        #     budget_list = [4800, 5600, 6400]
-        # elif progress <= 0.34 and progress > 0.16:
-        #     budget_list = [3200, 4000, 4800]
-        # elif progress <= 0.51 and progress > 0.333:
-        #     budget_list = [800, 1600, 2400, 3200]
-        # elif progress <= 0.68 and progress > 0.5:
-        #     budget_list = [400, 800, 1600, 3200]
-        # elif progress <= 0.84 and progress > 0.67:
-        #     budget_list = [100, 200, 400, 800, 1600]
-        # else:
-        #     budget_list = [100, 200, 400, 800, 1600, 3200, 4800, 5600, 6400]
-
-
-        if self.current_epoch == 1:
-            budget_list = [4000]
-        elif self.current_epoch == 2:
-            budget_list = [2000]
-        elif self.current_epoch == 3:
-            budget_list = [2000]
-        elif self.current_epoch == 4:
-            budget_list = [1000]
-        elif self.current_epoch == 5:
-            budget_list = [500]
-            
         print("!" * 100 + f"budget chosen from {budget_list}" + "!" * 100)
         return random.choice(budget_list)
     
     def __call__(self, features: List[Dict[str, Any]]):
-        progress = self.get_progress()
-        print("#" * 50 + f"Current Progress: {progress:.2f}" + "#" * 50)
-        budget = self.get_budget(progress)
+        budget = self.get_budget()
         # budget = random.choice([400, 800, 1200,1600])
         # budget = 500
         print("!" * 100 + f"budget = {budget}" + "!" * 100)
-        return collate_fn(features, budget)
+        return collate_fn(features, budget, current_epoch=self.current_epoch)
 
 
-def collate_fn(features: List[Dict[str, Any]], budget=None) -> Dict[str, Any]:
+def collate_fn(features: List[Dict[str, Any]], budget=None, current_epoch=1) -> Dict[str, Any]:
     all_budgets = [100, 200, 400, 800, 1600, 3200, 4800, 5600, 6400]
     #g 👆随机选取
     if budget is None:
@@ -157,6 +155,7 @@ def collate_fn(features: List[Dict[str, Any]], budget=None) -> Dict[str, Any]:
     tensors = defaultdict(list)
     non_tensors = defaultdict(list)
     non_tensors["budget"] = np.array([budget] * len(features), dtype=object)
+    non_tensors["current_epoch"] = np.array([current_epoch] * len(features), dtype=object)
 
     for feature in features:
         for key, value in feature.items():

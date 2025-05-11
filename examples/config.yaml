@@ -1,17 +1,20 @@
 data:
-  train_files: /home/share/wenhao/datasets/hiyouga_math12k/train-00000-of-00001.parquet
-  val_files: /home/share/wenhao/datasets/hiyouga_math12k/test-00000-of-00001.parquet
+  train_files: hiyouga/math12k@train
+  val_files: hiyouga/math12k@test
   prompt_key: problem
   answer_key: answer
   image_key: images
-  max_prompt_length: 1024
-  max_response_length: 6800
-  rollout_batch_size: 256
-  val_batch_size: -1
+  max_prompt_length: 2048
+  max_response_length: 2048
+  rollout_batch_size: 512
+  val_batch_size: 1024
+  format_prompt: ./examples/format_prompt/math_format.jinja
+  override_chat_template: null
   shuffle: true
   seed: 1
   max_pixels: 4194304
   min_pixels: 262144
+  filter_overlong_prompts: true
 
 algorithm:
   adv_estimator: grpo
@@ -29,7 +32,7 @@ worker:
     padding_free: true
     ulysses_sequence_parallel_size: 1
     model:
-      model_path: /data/wenhao/long_short_lora/models
+      model_path: Qwen/Qwen2.5-7B-Instruct
       enable_gradient_checkpointing: true
       trust_remote_code: false
       freeze_vision_tower: false
@@ -47,9 +50,10 @@ worker:
       offload_optimizer: true  # true: more CPU memory; false: more GPU memory
 
   rollout:
-    temperature: 1.0
     n: 5
-    gpu_memory_utilization: 0.35
+    temperature: 1.0
+    top_p: 0.99
+    gpu_memory_utilization: 0.6
     enforce_eager: false
     enable_chunked_prefill: false
     tensor_parallel_size: 2
@@ -64,24 +68,25 @@ worker:
       enable_cpu_offload: true  # true: more CPU memory; false: more GPU memory
       enable_rank0_init: true
     offload:
-      offload_params: true
+      offload_params: false
 
   reward:
-    reward_type: function
-    score_function: math
+    reward_type: batch
+    reward_function: ./examples/reward_function/math.py:compute_score
 
 trainer:
-  total_episodes: 15
-  logger: ["console", "wandb"]
+  total_epochs: 15
+  max_steps: null
   project_name: easy_r1
   experiment_name: qwen2_5_7b_math_grpo
-  n_gpus_per_node: 8
+  logger: ["console", "wandb"]
   nnodes: 1
+  n_gpus_per_node: 8
   val_freq: 5  # -1 to disable
-  val_before_train: false
+  val_before_train: true
   val_only: false
-  val_generations_to_log: 1
-  save_freq: 1  # -1 to disable
+  val_generations_to_log: 3
+  save_freq: 5  # -1 to disable
   save_limit: 3  # -1 to disable
-  save_checkpoint_path: /data/wuxinrui/easyr1_checkpoints/training
+  save_checkpoint_path: null
   load_checkpoint_path: null

@@ -8,7 +8,7 @@ def get_gpu_memory_usage():
     try:
         output = subprocess.check_output(
             ["nvidia-smi", "--query-gpu=memory.used,memory.total",
-             "--format=csv,noheader,nounits", "-i", "1,2,3,4"],
+             "--format=csv,noheader,nounits", "-i", "0,1,2,3,4,5,6,7"],
             universal_newlines=True
         )
         return output.strip().split('\n')
@@ -30,7 +30,7 @@ def check_low_usage(threshold=10):
 
 def main():
     check_interval = 60*10  # 检查间隔（秒）
-    command_to_run = "nohup bash /data/wuxinrui/EasyR1/examples/run_qwen2_5_7b_math_a100.sh &"  # 替换为需要执行的命令
+    command_to_run = "bash /mnt/lyc/wuxinrui/R1_training/examples/FULLv3.sh"  # 替换为需要执行的命令
 
     while True:
         if check_low_usage(threshold=10):

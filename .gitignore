@@ -175,3 +175,7 @@ outputs/
 checkpoints/
 wandb/
 tensorboard_log/
+*.jsonl
+trained/
+training/
+*.log

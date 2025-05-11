@@ -52,27 +52,39 @@ class CustomRewardManager:
             response_mask = data_item.batch["response_mask"]
             budget_and_tokens = data_item.batch["budget_and_tokens"]
             origin_response_length = data_item.batch["origin_response_length"]
+            prompt_ids = data_item.batch['prompts']
             
-            print("*" * 100 + "budget_and_tokens.shape", budget_and_tokens.shape, "*" * 100)
-            print("*" * 100 + "origin_response_length.shape", origin_response_length.shape, "*"* 100)
+            # print("*" * 100 + "budget_and_tokens.shape", budget_and_tokens.shape, "*" * 100)
+            # print("*" * 100 + "origin_response_length.shape", origin_response_length.shape, "*"* 100)
             
             
             valid_response_length = response_mask.sum()
             valid_response_ids = response_ids[:valid_response_length]
+            
+            valid_prompt_ids = prompt_ids
 
             response_str = self.tokenizer.decode(
                 valid_response_ids, skip_special_tokens=self.config.skip_special_tokens
             )
+            raw_response_str = self.tokenizer.decode(
+                valid_response_ids, skip_special_tokens=True
+            )
+            prompt_str = self.tokenizer.decode(
+                valid_prompt_ids, skip_special_tokens=True
+            )
+            
             budget = data_item.non_tensor_batch["budget"]
+
+            current_epoch = data_item.non_tensor_batch["current_epoch"]
 
             ground_truth = data_item.non_tensor_batch["ground_truth"]
 
             if self.config.score_function == "math" or self.config.score_function == "r1v":
                 score = self.compute_score(response_str, ground_truth)
             elif self.config.score_function == "reason_with_in_limit":
-                score = self.reason_with_in_limit_compute_score(response_str, ground_truth, current_length=origin_response_length, budget=budget_and_tokens)
+                score = self.reason_with_in_limit_compute_score(response_str, ground_truth, current_length=origin_response_length, budget=budget_and_tokens, current_epoch=current_epoch, prompt_str=prompt_str, raw_response_str=raw_response_str)
 
-            
+
             reward_tensor[i, valid_response_length - 1] = score["overall"]
             for key, value in score.items():
                 reward_metrics[key].append(value)

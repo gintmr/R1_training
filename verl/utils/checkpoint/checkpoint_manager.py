@@ -146,7 +146,7 @@ def remove_obsolete_ckpt(
     global_step: int,
     save_limit: int = -1,
     directory_format: str = "global_step_{}",
-    protected_steps: set = {46, 92, 138, 184, 230, 276, 322},
+    protected_steps: set = {46, 23, 69, 92, 115, 138, 161, 184, 230, 276, 322},
     watch_mode: bool = False,
     cleanup_interval: int = 300
 ):

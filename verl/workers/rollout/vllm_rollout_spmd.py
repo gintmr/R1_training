@@ -153,8 +153,12 @@ class vLLMRollout(BaseRollout):
         #ddd 不论1/2 stage推理
         with self.update_sampling_params(**prompts.meta_info):
             # cut_params = {"max_tokens": budget_and_tokens}
+            
+            max_tokens = (budget_and_tokens + (budget_and_tokens // 4)) if (budget_and_tokens + (budget_and_tokens // 4)) <= (self.config.response_length - 200) else (self.config.response_length - 200) #g 1.25被budeet作为截断长度
+            
+            print(f"$$$$$$$$$$$$max_tokens = {max_tokens}$$$$$$$$$$$$$$$")
             #g 使用reason_with_in_limit对应reward机制的话，无需额外截断
-            cut_params = {"max_tokens": self.config.response_length - 200}
+            cut_params = {"max_tokens": max_tokens}
 
             #ddd 单独设置截断长度，更新sampling参数
             with self.update_sampling_params(**cut_params):
@@ -198,8 +202,14 @@ class vLLMRollout(BaseRollout):
 
 
         #g =========2-stage inference============g#
+        # import random
+        # if os.environ['steady'] == "FULLv4":
+        #     self.stage = "1" if random.random() < 0.5 else "2"
+            
+        print(f"self.stage = {self.stage}\n" * 20)
+        
         if self.stage == "2":
-            final_prompt_str = "\n</think>\n\n**Final Answer**\n\\boxed"
+            final_prompt_str = "\n</think>\n**Final Answer**\\boxed"
             final_prompt_token_ids = self.tokenizer.encode(final_prompt_str, add_special_tokens=False)
 
             # 更新 vllm_inputs，添加 final_prompt_str
